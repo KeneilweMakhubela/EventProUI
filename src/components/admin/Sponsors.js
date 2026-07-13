@@ -563,29 +563,82 @@ const handleReject = async (sponsor) => {
 };
 
   // Toggle sponsor status (Active/Suspended) - matches UpdateSponsorStatusDto
-  const handleToggleStatus = async (sponsor) => {
-    const newStatus = sponsor.status === 'Active' ? 'Suspended' : 'Active';
-    
-    if (!window.confirm(`Are you sure you want to ${newStatus === 'Active' ? 'activate' : 'suspend'} "${sponsor.companyName}"?`)) {
-      return;
-    }
-    
-    try {
-      // Matches UpdateSponsorStatusDto: { Status: string, RejectionReason?: string }
-      const payload = {
-        status: newStatus,
-      };
+      // Toggle sponsor status (Active/Approved <-> Suspended)
+    const handleToggleStatus = async (sponsor) => {
+      console.log('🔄 Toggling status for sponsor:', sponsor.companyName, 'Current status:', sponsor.status);
       
-      await apiCall(`/api/Sponsor/admin/status/${sponsor.sponsorId}`, 'PUT', payload);
-      setSaveSuccess(`✅ Sponsor ${newStatus.toLowerCase()} successfully!`);
-      await fetchSponsors();
-      setTimeout(() => setSaveSuccess(''), 3000);
-    } catch (error) {
-      console.error('❌ Error toggling status:', error);
-      setSaveError(`Failed to update status: ${error.message}`);
-      setTimeout(() => setSaveError(''), 5000);
-    }
-  };
+      let newStatus;
+      
+      if (sponsor.status === 'Active') {
+        newStatus = 'Suspended';
+      } else if (sponsor.status === 'Suspended') {
+        newStatus = 'Approved'; // Change to Approved when activating from Suspended
+      } else if (sponsor.status === 'Approved') {
+        newStatus = 'Suspended';
+      } else {
+        console.warn('⚠️ Unknown status for toggle:', sponsor.status);
+        return;
+      }
+      
+      const actionText = (newStatus === 'Active' || newStatus === 'Approved') ? 'activate' : 'suspend';
+      
+      if (!window.confirm(`Are you sure you want to ${actionText} "${sponsor.companyName}"?`)) {
+        return;
+      }
+      
+      try {
+        const payload = {
+          status: newStatus,
+          rejectionReason: "" // Required field - empty string for non-rejection status changes
+        };
+        
+        console.log('📤 Updating status to:', newStatus, 'Endpoint: /api/Sponsor/admin/status/' + sponsor.sponsorId);
+        console.log('📤 Payload:', JSON.stringify(payload));
+        
+        const response = await apiCall(`/api/Sponsor/admin/status/${sponsor.sponsorId}`, 'PUT', payload);
+        
+        console.log('✅ Status update response:', response);
+        
+        setSaveSuccess(`✅ Sponsor status changed to ${newStatus.toLowerCase()} successfully!`);
+        await fetchSponsors();
+        setTimeout(() => setSaveSuccess(''), 3000);
+      } catch (error) {
+        console.error('❌ Error toggling status:', error);
+        console.error('❌ Full error details:', JSON.stringify(error, null, 2));
+        
+        let errorMessage = 'Failed to update status.';
+        
+        // Handle validation errors
+        if (error.errors) {
+          const errorMessages = [];
+          Object.entries(error.errors).forEach(([field, messages]) => {
+            if (Array.isArray(messages)) {
+              errorMessages.push(`${field}: ${messages.join(', ')}`);
+            } else {
+              errorMessages.push(`${field}: ${messages}`);
+            }
+          });
+          errorMessage = errorMessages.join('\n');
+        } else if (error.message) {
+          errorMessage = error.message;
+        } else if (error.error) {
+          errorMessage = error.error;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        }
+        
+        // Check if error has a response with details
+        if (error.response) {
+          console.error('❌ Response:', error.response);
+          if (error.response.data) {
+            errorMessage = error.response.data.message || error.response.data.error || errorMessage;
+          }
+        }
+        
+        setSaveError(`❌ ${errorMessage}`);
+        setTimeout(() => setSaveError(''), 8000);
+      }
+    };
 
   // Delete (deactivate) sponsor
   const handleDelete = async (sponsor) => {
@@ -819,6 +872,10 @@ const handleReject = async (sponsor) => {
                     <i className="fas fa-edit"></i>
                   </button>
                   
+                  {/* Replace the status buttons section in the sponsor cards with this: */}
+
+                    {/* Approve/Reject buttons for Pending sponsors */}
+                                      {/* Approve/Reject buttons for Pending sponsors */}
                   {s.status === 'Pending' && (
                     <>
                       <button 
@@ -832,19 +889,29 @@ const handleReject = async (sponsor) => {
                       </button>
                     </>
                   )}
-                  
-                  {(s.status === 'Approved' || s.status === 'Active') && (
+
+                  {/* Suspend button for Approved sponsors */}
+                  {s.status === 'Approved' && (
                     <button onClick={() => handleToggleStatus(s)} className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-2.5 py-1.5 rounded-full text-xs font-semibold hover:bg-yellow-100 transition-all">
                       <i className="fas fa-pause"></i> Suspend
                     </button>
                   )}
-                  
+
+                  {/* Suspend button for Active sponsors */}
+                  {s.status === 'Active' && (
+                    <button onClick={() => handleToggleStatus(s)} className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-2.5 py-1.5 rounded-full text-xs font-semibold hover:bg-yellow-100 transition-all">
+                      <i className="fas fa-pause"></i> Suspend
+                    </button>
+                  )}
+
+                  {/* Activate button for Suspended sponsors */}
                   {s.status === 'Suspended' && (
                     <button onClick={() => handleToggleStatus(s)} className="bg-green-50 border border-green-200 text-green-700 px-2.5 py-1.5 rounded-full text-xs font-semibold hover:bg-green-100 transition-all">
                       <i className="fas fa-play"></i> Activate
                     </button>
                   )}
-                  
+
+                  {/* Delete button always visible */}
                   <button onClick={() => handleDelete(s)} className="bg-white border border-red-200 text-red-600 px-2.5 py-1.5 rounded-full text-xs font-semibold hover:bg-red-50 transition-all">
                     <i className="fas fa-trash"></i> Delete
                   </button>
