@@ -329,77 +329,149 @@ const Sponsors = () => {
   // SAVE SPONSOR (CREATE/UPDATE)
   // ============================================================
 
-  const handleSaveSponsor = async () => {
-    if (!validateSponsorForm()) {
-      setSaveError('Please fix the highlighted fields.');
-      return;
+  // SAVE SPONSOR (CREATE/UPDATE)
+  // ============================================================
+// SAVE SPONSOR (CREATE/UPDATE)
+// ============================================================
+const handleSaveSponsor = async () => {
+  if (!validateSponsorForm()) {
+    setSaveError('Please fix the highlighted fields.');
+    return;
+  }
+
+  setIsSaving(true);
+  setSaveError('');
+  setValidationErrors({});
+
+  if (selectedSponsor) {
+    // UPDATE - Build payload matching UpdateSponsorRequestDto
+    // Only include fields that have values (the DTO has [MaxLength] but no [Required])
+    const dataToSave = {};
+
+    // Helper to only add non-empty values
+    const addIfValue = (key, value) => {
+      if (value !== null && value !== undefined && value !== '') {
+        dataToSave[key] = value;
+      }
+    };
+
+    addIfValue('companyName', formData.companyName?.trim());
+    addIfValue('email', formData.email?.trim());
+    addIfValue('phoneNumber', formData.phoneNumber?.trim());
+    addIfValue('website', formData.website?.trim());
+    addIfValue('linkedIn', formData.linkedIn?.trim());
+    addIfValue('twitter', formData.twitter?.trim());
+    addIfValue('facebook', formData.facebook?.trim());
+    addIfValue('streetAddress', formData.streetAddress?.trim());
+    addIfValue('city', formData.city?.trim());
+    addIfValue('province', formData.province?.trim());
+    addIfValue('postalCode', formData.postalCode?.trim());
+    addIfValue('country', formData.country?.trim());
+    addIfValue('industry', formData.industry?.trim());
+    addIfValue('companySize', formData.companySize?.trim());
+    addIfValue('registrationNumber', formData.registrationNumber?.trim());
+    addIfValue('taxNumber', formData.taxNumber?.trim());
+    addIfValue('logoUrl', formData.logoUrl?.trim());
+    addIfValue('bannerUrl', formData.bannerUrl?.trim());
+    addIfValue('status', formData.status);
+    addIfValue('isActive', true);
+
+    console.log('📤 UPDATE Payload:', JSON.stringify(dataToSave, null, 2));
+    console.log('📤 Sponsor ID:', selectedSponsor.sponsorId);
+
+    try {
+      const response = await apiCall(`/api/Sponsor/admin/update/${selectedSponsor.sponsorId}`, 'PUT', dataToSave);
+      console.log('✅ Update response:', response);
+      setSaveSuccess('Sponsor updated successfully!');
+      await fetchSponsors();
+      setTimeout(() => { setShowForm(false); setSaveSuccess(''); }, 1500);
+    } catch (error) {
+      console.error('❌ Error updating sponsor:', error);
+      console.error('❌ Full error:', JSON.stringify(error, null, 2));
+      
+      let errorMessage = 'Failed to update sponsor.';
+      if (error.errors) {
+        const messages = [];
+        const fieldErrors = {};
+        Object.entries(error.errors).forEach(([field, msgs]) => {
+          const msg = Array.isArray(msgs) ? msgs.join(', ') : msgs;
+          messages.push(`${field}: ${msg}`);
+          fieldErrors[field] = msg;
+        });
+        errorMessage = messages.join('\n');
+        setValidationErrors(fieldErrors);
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      setSaveError(`❌ ${errorMessage}`);
+    } finally {
+      setIsSaving(false);
     }
-
-    setIsSaving(true);
-    setSaveError('');
-    setValidationErrors({});
-
+  } else {
+    // CREATE - Build payload matching SponsorApplicationRequestDto
     const dataToSave = {
       companyName: formData.companyName.trim(),
       email: formData.email.trim(),
       phoneNumber: formData.phoneNumber.trim(),
       website: formData.website?.trim() || null,
-      linkedIn: formData.linkedIn?.trim() || null,
-      twitter: formData.twitter?.trim() || null,
-      facebook: formData.facebook?.trim() || null,
       streetAddress: formData.streetAddress?.trim() || null,
       city: formData.city?.trim() || null,
       province: formData.province?.trim() || null,
-      postalCode: formData.postalCode?.trim() || null,
-      country: formData.country || 'South Africa',
       industry: formData.industry?.trim() || null,
       companySize: formData.companySize?.trim() || null,
-      registrationNumber: formData.registrationNumber?.trim() || null,
-      taxNumber: formData.taxNumber?.trim() || null,
-      logoUrl: formData.logoUrl?.trim() || null,
-      bannerUrl: formData.bannerUrl?.trim() || null,
       preferredPackageId: formData.preferredPackageId || null,
-      contactPersons: formData.contactPersons.map(cp => ({
-        fullName: cp.fullName.trim(),
-        email: cp.email.trim(),
-        phoneNumber: cp.phoneNumber.trim(),
-        jobTitle: cp.jobTitle?.trim() || null,
-        department: cp.department?.trim() || null,
-        isPrimary: cp.isPrimary || false,
-      })),
+      contactPersons: formData.contactPersons
+        .filter(cp => cp.fullName.trim() || cp.email.trim())
+        .map(cp => ({
+          fullName: cp.fullName.trim(),
+          email: cp.email.trim(),
+          phoneNumber: cp.phoneNumber.trim(),
+          jobTitle: cp.jobTitle?.trim() || null,
+          department: cp.department?.trim() || null,
+          isPrimary: cp.isPrimary || false,
+        })),
     };
 
-    // Add status for updates
-    if (selectedSponsor) {
-      dataToSave.status = formData.status;
-    }
+    // Remove null/undefined
+    Object.keys(dataToSave).forEach(key => {
+      if (dataToSave[key] === null || dataToSave[key] === undefined) {
+        delete dataToSave[key];
+      }
+    });
+
+    console.log('📤 CREATE Payload:', JSON.stringify(dataToSave, null, 2));
 
     try {
-      let response;
-      if (selectedSponsor) {
-        // UPDATE - using admin update endpoint
-        response = await apiCall(`/api/Sponsor/admin/update/${selectedSponsor.sponsorId}`, 'PUT', dataToSave);
-        setSaveSuccess('Sponsor updated successfully!');
-      } else {
-        // CREATE - using admin create endpoint
-        response = await apiCall('/api/Sponsor/admin/create', 'POST', dataToSave);
-        setSaveSuccess('Sponsor created successfully!');
-      }
-
+      const response = await apiCall('/api/Sponsor/admin/create', 'POST', dataToSave);
+      console.log('✅ Create response:', response);
+      setSaveSuccess('Sponsor created successfully!');
       await fetchSponsors();
       setTimeout(() => { setShowForm(false); setSaveSuccess(''); }, 1500);
     } catch (error) {
-      console.error('❌ Error saving sponsor:', error);
-      if (error.details) {
-        setValidationErrors(error.details);
-        setSaveError('Please fix the highlighted fields.');
-      } else {
-        setSaveError(error.message || 'Failed to save sponsor.');
+      console.error('❌ Error creating sponsor:', error);
+      console.error('❌ Full error:', JSON.stringify(error, null, 2));
+      
+      let errorMessage = 'Failed to create sponsor.';
+      if (error.errors) {
+        const messages = [];
+        const fieldErrors = {};
+        Object.entries(error.errors).forEach(([field, msgs]) => {
+          const msg = Array.isArray(msgs) ? msgs.join(', ') : msgs;
+          messages.push(`${field}: ${msg}`);
+          fieldErrors[field] = msg;
+        });
+        errorMessage = messages.join('\n');
+        setValidationErrors(fieldErrors);
+      } else if (error.message) {
+        errorMessage = error.message;
       }
+      setSaveError(`❌ ${errorMessage}`);
     } finally {
       setIsSaving(false);
     }
-  };
+  }
+};
+  
 
   // ============================================================
   // ADMIN ACTIONS

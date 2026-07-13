@@ -19,7 +19,7 @@ const Sidebar = ({ currentRole, currentView, onNavigate, isOpen, onClose }) => {
   const sponsorMenu = [
     { category: 'Sponsor Dashboard', items: [
       { view: 'sponsor-dashboard', icon: 'fa-star', label: 'Dashboard' },
-      { view: 'sponsor-application', icon: 'fa-paper-plane', label: 'Apply Now' },
+      { view: 'sponsor-application', icon: 'fa-paper-plane', label: 'Sponsor Now' },
       { view: 'sponsor-profile', icon: 'fa-building', label: 'Profile' },
       { view: 'sponsor-packages', icon: 'fa-gift', label: 'Packages' },
       { view: 'sponsor-allocations', icon: 'fa-check-circle', label: 'My Allocations' },
