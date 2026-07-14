@@ -22,6 +22,7 @@ import SponsorProfile from './components/sponsor/SponsorProfile';
 import SponsorPackages from './components/sponsor/SponsorPackages';
 import SponsorAllocations from './components/sponsor/SponsorAllocations';
 import SponsorRSVPs from './components/sponsor/SponsorRSVPs';
+import AllocatedPlayers from './components/sponsor/AllocatedPlayers.js';
 
 import { initialEvents, initialPlayers, initialSponsors, initialRsvps } from './data/initialData';
 
@@ -139,8 +140,11 @@ function AppContent() {
         return <SponsorRSVPs />;
       case 'sponsor-application': 
         return <SponsorApplication />;
+      case 'sponsor-allocated-players':
+        return <AllocatedPlayers />;
       default:
         return <SponsorDashboard />;
+        
 
     }
   }

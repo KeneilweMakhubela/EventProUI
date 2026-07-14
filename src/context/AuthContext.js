@@ -76,10 +76,26 @@ export const AuthProvider = ({ children }) => {
 
       if (!response.ok) {
         // Try to get error details
+        let errorData = null;
         let errorMessage = `Request failed with status ${response.status}`;
+        
         try {
-          const errorData = await response.json();
+          errorData = await response.json();
           console.error('❌ API Error Response:', errorData);
+          
+          // Handle different error formats
+          if (errorData.errors) {
+            // ASP.NET Core validation errors
+            const error = new Error('Validation failed');
+            error.errors = errorData.errors;
+            error.response = {
+              status: response.status,
+              data: errorData,
+              statusText: response.statusText
+            };
+            throw error;
+          }
+          
           errorMessage = errorData?.message || errorData?.title || errorMessage;
           
           // Handle specific error cases
@@ -96,7 +112,16 @@ export const AuthProvider = ({ children }) => {
           console.error('❌ Could not parse error response');
         }
         
-        throw new Error(errorMessage);
+        const error = new Error(errorMessage);
+        error.response = {
+          status: response.status,
+          data: errorData || {},
+          statusText: response.statusText
+        };
+        if (errorData?.errors) {
+          error.errors = errorData.errors;
+        }
+        throw error;
       }
 
       // Check if response has content
@@ -123,12 +148,9 @@ export const AuthProvider = ({ children }) => {
         password,
       });
 
-      // console.log('✅ Login response:', response);
-
-       console.log('📦 FULL LOGIN RESPONSE:', JSON.stringify(response, null, 2));
+      console.log('📦 FULL LOGIN RESPONSE:', JSON.stringify(response, null, 2));
       console.log('📦 Response keys:', Object.keys(response));
       
-      // ✅ DEBUG: Check if userId exists
       console.log('📦 userId:', response.userId);
       console.log('📦 id:', response.id);
       console.log('📦 playerId:', response.playerId);

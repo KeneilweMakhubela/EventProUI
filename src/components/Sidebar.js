@@ -15,14 +15,15 @@ const Sidebar = ({ currentRole, currentView, onNavigate, isOpen, onClose }) => {
     ]}
   ];
 
-  // ✅ NEW: Sponsor Menu
+  // ✅ UPDATED: Sponsor Menu with Allocated Players tab
   const sponsorMenu = [
     { category: 'Sponsor Dashboard', items: [
       { view: 'sponsor-dashboard', icon: 'fa-star', label: 'Dashboard' },
       { view: 'sponsor-application', icon: 'fa-paper-plane', label: 'Sponsor Now' },
       { view: 'sponsor-profile', icon: 'fa-building', label: 'Profile' },
-      { view: 'sponsor-packages', icon: 'fa-gift', label: 'Packages' },
-      { view: 'sponsor-allocations', icon: 'fa-check-circle', label: 'My Allocations' },
+      { view: 'sponsor-packages', icon: 'fa-gift', label: 'Available Packages' },
+      { view: 'sponsor-allocations', icon: 'fa-check-circle', label: 'Allocated Packages' },
+      { view: 'sponsor-allocated-players', icon: 'fa-user-plus', label: 'Allocated Players' }, // ✅ NEW
       { view: 'sponsor-rsvps', icon: 'fa-calendar-check', label: 'My RSVPs' },
     ]}
   ];
@@ -67,7 +68,7 @@ const Sidebar = ({ currentRole, currentView, onNavigate, isOpen, onClose }) => {
               className={`nav-item flex items-center gap-3 px-4 py-3 rounded-2xl font-medium cursor-pointer transition-all duration-200 text-sm ${
                 currentView === item.view 
                   ? 'nav-active text-white' 
-                  : 'text-gray-300'
+                  : 'text-gray-300 hover:text-white hover:bg-white/5'
               }`}
               onClick={() => handleNavClick(item.view)}
             >

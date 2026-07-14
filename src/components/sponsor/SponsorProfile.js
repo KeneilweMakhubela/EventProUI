@@ -28,16 +28,6 @@ const SponsorProfile = () => {
     country: 'South Africa',
     logoUrl: '',
     bannerUrl: '',
-    contactPersons: [
-      {
-        fullName: '',
-        email: '',
-        phoneNumber: '',
-        jobTitle: '',
-        department: '',
-        isPrimary: true,
-      }
-    ],
   });
 
   useEffect(() => {
@@ -71,16 +61,6 @@ const SponsorProfile = () => {
           country: response.country || 'South Africa',
           logoUrl: response.logoUrl || '',
           bannerUrl: response.bannerUrl || '',
-          contactPersons: response.contactPersons?.length > 0 
-            ? response.contactPersons.map(cp => ({
-                fullName: cp.fullName || '',
-                email: cp.email || '',
-                phoneNumber: cp.phoneNumber || '',
-                jobTitle: cp.jobTitle || '',
-                department: cp.department || '',
-                isPrimary: cp.isPrimary || false,
-              }))
-            : [{ fullName: '', email: '', phoneNumber: '', jobTitle: '', department: '', isPrimary: true }],
         });
       }
     } catch (error) {
@@ -98,37 +78,6 @@ const SponsorProfile = () => {
     setValidationErrors(prev => ({ ...prev, [name]: '' }));
   };
 
-  const handleContactChange = (index, field, value) => {
-    setEditForm(prev => {
-      const updated = [...prev.contactPersons];
-      updated[index] = { ...updated[index], [field]: value };
-      return { ...prev, contactPersons: updated };
-    });
-    const key = `contactPerson_${index}_${field}`;
-    setValidationErrors(prev => ({ ...prev, [key]: '' }));
-  };
-
-  const addContactPerson = () => {
-    setEditForm(prev => ({
-      ...prev,
-      contactPersons: [
-        ...prev.contactPersons,
-        { fullName: '', email: '', phoneNumber: '', jobTitle: '', department: '', isPrimary: false }
-      ]
-    }));
-  };
-
-  const removeContactPerson = (index) => {
-    if (editForm.contactPersons.length <= 1) {
-      setSaveError('At least one contact person is required');
-      return;
-    }
-    setEditForm(prev => ({
-      ...prev,
-      contactPersons: prev.contactPersons.filter((_, i) => i !== index)
-    }));
-  };
-
   const validateForm = () => {
     const errors = {};
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -144,18 +93,6 @@ const SponsorProfile = () => {
       errors.phoneNumber = 'Valid phone number is required (min 10 digits)';
     }
     
-    editForm.contactPersons.forEach((cp, index) => {
-      if (!cp.fullName || cp.fullName.trim().length < 2) {
-        errors[`contactPerson_${index}_fullName`] = 'Contact name is required';
-      }
-      if (!cp.email || !emailRegex.test(cp.email)) {
-        errors[`contactPerson_${index}_email`] = 'Valid contact email is required';
-      }
-      if (!cp.phoneNumber || !phoneRegex.test(cp.phoneNumber)) {
-        errors[`contactPerson_${index}_phoneNumber`] = 'Valid contact phone is required';
-      }
-    });
-    
     setValidationErrors(errors);
     return Object.keys(errors).length === 0;
   };
@@ -168,12 +105,7 @@ const SponsorProfile = () => {
     return errors || '';
   };
 
-  const getContactFieldError = (index, field) => {
-    const key = `contactPerson_${index}_${field}`;
-    return validationErrors[key] || '';
-  };
-
-  const handleSave = async () => {
+    const handleSave = async () => {
     if (!validateForm()) {
         setSaveError('Please fix the highlighted fields.');
         const firstError = document.querySelector('.border-red-300');
@@ -184,37 +116,65 @@ const SponsorProfile = () => {
     }
 
     try {
-        // Build the data to match the expected endpoint body
-        const dataToSave = {
-            companyName: editForm.companyName.trim(),
-            registrationNumber: editForm.registrationNumber?.trim() || null,
-            taxNumber: editForm.taxNumber?.trim() || null,
-            industry: editForm.industry?.trim() || null,
-            companySize: editForm.companySize?.trim() || null,
-            email: editForm.email.trim(),
-            phoneNumber: editForm.phoneNumber.trim(),
-            website: editForm.website?.trim() || null,
-            linkedIn: editForm.linkedIn?.trim() || null,
-            twitter: editForm.twitter?.trim() || null,
-            facebook: editForm.facebook?.trim() || null,
-            streetAddress: editForm.streetAddress?.trim() || null,
-            city: editForm.city?.trim() || null,
-            province: editForm.province?.trim() || null,
-            postalCode: editForm.postalCode?.trim() || null,
-            country: editForm.country || 'South Africa',
-            logoUrl: editForm.logoUrl?.trim() || null,
-            bannerUrl: editForm.bannerUrl?.trim() || null,
-            contactPersons: editForm.contactPersons.map(cp => ({
-                fullName: cp.fullName.trim(),
-                email: cp.email.trim(),
-                phoneNumber: cp.phoneNumber.trim(),
-                jobTitle: cp.jobTitle?.trim() || null,
-                department: cp.department?.trim() || null,
-                isPrimary: cp.isPrimary || false,
-            })),
-        };
+        // Build the data with ONLY the fields sponsors can update
+        const dataToSave = {};
 
-        console.log('📤 Updating profile:', JSON.stringify(dataToSave, null, 2));
+        // Required fields
+        dataToSave.CompanyName = editForm.companyName.trim();
+        dataToSave.Email = editForm.email.trim();
+        dataToSave.PhoneNumber = editForm.phoneNumber.trim();
+
+        // Optional fields - only add if they have values
+        if (editForm.registrationNumber?.trim()) {
+            dataToSave.RegistrationNumber = editForm.registrationNumber.trim();
+        }
+        if (editForm.taxNumber?.trim()) {
+            dataToSave.TaxNumber = editForm.taxNumber.trim();
+        }
+        if (editForm.industry?.trim()) {
+            dataToSave.Industry = editForm.industry.trim();
+        }
+        if (editForm.companySize?.trim()) {
+            dataToSave.CompanySize = editForm.companySize.trim();
+        }
+        if (editForm.website?.trim()) {
+            dataToSave.Website = editForm.website.trim();
+        }
+        if (editForm.linkedIn?.trim()) {
+            dataToSave.LinkedIn = editForm.linkedIn.trim();
+        }
+        if (editForm.twitter?.trim()) {
+            dataToSave.Twitter = editForm.twitter.trim();
+        }
+        if (editForm.facebook?.trim()) {
+            dataToSave.Facebook = editForm.facebook.trim();
+        }
+        if (editForm.streetAddress?.trim()) {
+            dataToSave.StreetAddress = editForm.streetAddress.trim();
+        }
+        if (editForm.city?.trim()) {
+            dataToSave.City = editForm.city.trim();
+        }
+        if (editForm.province?.trim()) {
+            dataToSave.Province = editForm.province.trim();
+        }
+        if (editForm.postalCode?.trim()) {
+            dataToSave.PostalCode = editForm.postalCode.trim();
+        }
+        if (editForm.country?.trim()) {
+            dataToSave.Country = editForm.country.trim();
+        }
+        if (editForm.logoUrl?.trim()) {
+            dataToSave.LogoUrl = editForm.logoUrl.trim();
+        }
+        if (editForm.bannerUrl?.trim()) {
+            dataToSave.BannerUrl = editForm.bannerUrl.trim();
+        }
+
+        // IMPORTANT: Do NOT send Status, RejectionReason, or IsActive
+        // These are admin-only fields
+
+        console.log('📤 Sending data:', JSON.stringify(dataToSave, null, 2));
         
         const response = await apiCall('/api/Sponsor/profile', 'PUT', dataToSave);
         console.log('✅ Profile updated:', response);
@@ -225,20 +185,26 @@ const SponsorProfile = () => {
         setTimeout(() => setSaveSuccess(''), 3000);
     } catch (error) {
         console.error('❌ Error updating profile:', error);
-        if (error.details) {
-            setValidationErrors(error.details);
+        
+        // Log the full error
+        console.log('Full error object:', error);
+        
+        // Check for validation errors
+        if (error.errors) {
+            console.log('Validation errors:', error.errors);
+            const formattedErrors = {};
+            Object.keys(error.errors).forEach(key => {
+                formattedErrors[key] = Array.isArray(error.errors[key]) 
+                    ? error.errors[key].join(', ') 
+                    : error.errors[key];
+            });
+            setValidationErrors(formattedErrors);
             setSaveError('Please fix the highlighted fields.');
-        } else if (error.errors) {
-            // Handle validation errors from backend
-            const backendErrors = error.errors;
+        } else if (error.response?.data?.errors) {
+            const backendErrors = error.response.data.errors;
             const formattedErrors = {};
             Object.keys(backendErrors).forEach(key => {
-                // Map field names if needed
-                const fieldMap = {
-                    'contactPersons': 'contactPersons'
-                };
-                const frontendKey = fieldMap[key] || key;
-                formattedErrors[frontendKey] = Array.isArray(backendErrors[key]) 
+                formattedErrors[key] = Array.isArray(backendErrors[key]) 
                     ? backendErrors[key].join(', ') 
                     : backendErrors[key];
             });
@@ -247,7 +213,7 @@ const SponsorProfile = () => {
         } else if (error.message) {
             setSaveError(error.message);
         } else {
-            setSaveError('Failed to update profile');
+            setSaveError('Failed to update profile. Please try again.');
         }
         setTimeout(() => setSaveError(''), 5000);
     }
@@ -581,106 +547,6 @@ const SponsorProfile = () => {
               </div>
             </div>
 
-            {/* Contact Persons */}
-            <h4 className="text-md font-semibold text-[#132149] mt-6 mb-3">👤 Contact Persons</h4>
-            <p className="text-sm text-gray-400 mb-4">At least one contact person is required.</p>
-            
-            {editForm.contactPersons.map((contact, index) => (
-              <div key={index} className="bg-gray-50 rounded-2xl p-4 border border-gray-200 mb-3">
-                <div className="flex justify-between items-start mb-3">
-                  <h5 className="text-sm font-medium text-gray-700">Contact #{index + 1}</h5>
-                  <button
-                    type="button"
-                    onClick={() => removeContactPerson(index)}
-                    className="text-red-400 hover:text-red-600"
-                    disabled={editForm.contactPersons.length <= 1}
-                  >
-                    <i className="fas fa-times"></i>
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Full Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={contact.fullName}
-                      onChange={(e) => handleContactChange(index, 'fullName', e.target.value)}
-                      placeholder="John Doe"
-                      className={`w-full px-3 py-2 rounded-xl border-2 ${getContactFieldError(index, 'fullName') ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'} focus:border-[#02a2e0] outline-none text-sm`}
-                    />
-                    {getContactFieldError(index, 'fullName') && <p className="mt-1 text-xs text-red-500">{getContactFieldError(index, 'fullName')}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Email <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      value={contact.email}
-                      onChange={(e) => handleContactChange(index, 'email', e.target.value)}
-                      placeholder="john@company.com"
-                      className={`w-full px-3 py-2 rounded-xl border-2 ${getContactFieldError(index, 'email') ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'} focus:border-[#02a2e0] outline-none text-sm`}
-                    />
-                    {getContactFieldError(index, 'email') && <p className="mt-1 text-xs text-red-500">{getContactFieldError(index, 'email')}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">
-                      Phone <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      value={contact.phoneNumber}
-                      onChange={(e) => handleContactChange(index, 'phoneNumber', e.target.value)}
-                      placeholder="+27721234567"
-                      className={`w-full px-3 py-2 rounded-xl border-2 ${getContactFieldError(index, 'phoneNumber') ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-white'} focus:border-[#02a2e0] outline-none text-sm`}
-                    />
-                    {getContactFieldError(index, 'phoneNumber') && <p className="mt-1 text-xs text-red-500">{getContactFieldError(index, 'phoneNumber')}</p>}
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Job Title</label>
-                    <input
-                      type="text"
-                      value={contact.jobTitle}
-                      onChange={(e) => handleContactChange(index, 'jobTitle', e.target.value)}
-                      placeholder="CEO"
-                      className="w-full px-3 py-2 rounded-xl border-2 border-gray-200 bg-white focus:border-[#02a2e0] outline-none text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Department</label>
-                    <input
-                      type="text"
-                      value={contact.department}
-                      onChange={(e) => handleContactChange(index, 'department', e.target.value)}
-                      placeholder="Executive"
-                      className="w-full px-3 py-2 rounded-xl border-2 border-gray-200 bg-white focus:border-[#02a2e0] outline-none text-sm"
-                    />
-                  </div>
-                  <div className="flex items-center mt-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={contact.isPrimary}
-                        onChange={(e) => handleContactChange(index, 'isPrimary', e.target.checked)}
-                        className="w-4 h-4 rounded border-gray-300 text-[#02a2e0] focus:ring-[#02a2e0]"
-                      />
-                      <span className="text-sm text-gray-700">Primary Contact</span>
-                    </label>
-                  </div>
-                </div>
-              </div>
-            ))}
-            
-            <button
-              type="button"
-              onClick={addContactPerson}
-              className="mt-2 text-sm text-[#02a2e0] hover:text-[#0284c7] font-medium flex items-center gap-1"
-            >
-              <i className="fas fa-plus"></i> Add Contact Person
-            </button>
-
             {/* Action Buttons */}
             <div className="flex gap-3 mt-6 pt-6 border-t border-gray-100">
               <button 
@@ -827,25 +693,6 @@ const SponsorProfile = () => {
                       <img src={profile.bannerUrl} alt="Banner" className="h-20 w-full object-cover rounded-lg border border-gray-200 mt-1" />
                     </div>
                   )}
-                </div>
-              </>
-            )}
-
-            {/* Contact Persons */}
-            {profile.contactPersons && profile.contactPersons.length > 0 && (
-              <>
-                <h4 className="text-md font-semibold text-[#132149] mt-6 mb-3">👤 Contact Persons</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  {profile.contactPersons.map((cp, idx) => (
-                    <div key={idx} className="bg-gray-50 p-3 rounded-xl">
-                      <p className="font-semibold text-[#132149]">
-                        {cp.fullName} {cp.isPrimary && <span className="text-xs text-green-600">(Primary)</span>}
-                      </p>
-                      <p className="text-sm text-gray-500">{cp.email}</p>
-                      <p className="text-sm text-gray-500">{cp.phoneNumber}</p>
-                      {cp.jobTitle && <p className="text-xs text-gray-400">{cp.jobTitle}{cp.department ? ` • ${cp.department}` : ''}</p>}
-                    </div>
-                  ))}
                 </div>
               </>
             )}
