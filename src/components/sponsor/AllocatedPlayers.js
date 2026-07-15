@@ -107,14 +107,17 @@ const AllocatedPlayers = () => {
   const openGuestModal = (allocation) => {
     setSelectedAllocation(allocation);
     setGuestForm({
-      idNumber: '',
-      name: '',
-      surname: '',
-      diet: '',
-      attendance: '',
+        idNumber: '',
+        name: '',
+        surname: '',
+        diet: '',
+        attendance: '',
     });
+    // Log the allocation to see what eventId it has
+    console.log('📦 Selected allocation:', allocation);
+    console.log('📦 EventId from allocation:', allocation.eventId);
     setShowGuestModal(true);
-  };
+};
 
   const handleRegisterChange = (e) => {
     const { name, value } = e.target;
@@ -207,28 +210,28 @@ const AllocatedPlayers = () => {
   const handleRegisterGuest = async () => {
     // Validate guest form
     if (!guestForm.idNumber.trim()) {
-      setSaveError('ID number is required');
-      return;
+        setSaveError('ID number is required');
+        return;
     }
     if (guestForm.idNumber.length < 6) {
-      setSaveError('Please enter a valid ID number');
-      return;
+        setSaveError('Please enter a valid ID number');
+        return;
     }
     if (!guestForm.name.trim()) {
-      setSaveError('Name is required');
-      return;
+        setSaveError('Name is required');
+        return;
     }
     if (!guestForm.surname.trim()) {
-      setSaveError('Surname is required');
-      return;
+        setSaveError('Surname is required');
+        return;
     }
     if (!guestForm.diet) {
-      setSaveError('Please select a dietary requirement');
-      return;
+        setSaveError('Please select a dietary requirement');
+        return;
     }
     if (!guestForm.attendance) {
-      setSaveError('Please select attendance type');
-      return;
+        setSaveError('Please select attendance type');
+        return;
     }
 
     setIsSaving(true);
@@ -236,34 +239,61 @@ const AllocatedPlayers = () => {
     setSaveSuccess('');
 
     try {
-      // TODO: Replace with actual guest registration endpoint
-      const guestData = {
-        idNumber: guestForm.idNumber.trim(),
-        name: guestForm.name.trim(),
-        surname: guestForm.surname.trim(),
-        diet: guestForm.diet,
-        attendance: guestForm.attendance,
-        allocationId: selectedAllocation.allocationId,
-        packageName: selectedAllocation.packageName,
-      };
+        // Use the eventId from the selected allocation
+        const eventId = selectedAllocation.eventId;
+        
+        console.log('📤 Registering guest with data:', {
+            idNumber: guestForm.idNumber.trim(),
+            name: guestForm.name.trim(),
+            surname: guestForm.surname.trim(),
+            diet: guestForm.diet,
+            attendance: guestForm.attendance,
+            allocationId: selectedAllocation.allocationId,
+            eventId: eventId,
+        });
 
-      console.log('📤 Registering guest:', guestData);
-      // await apiCall('/api/Sponsor/guests/register', 'POST', guestData);
-      console.log('✅ Guest registered successfully');
-      
-      setSaveSuccess('✅ Guest registered successfully!');
-      setShowGuestModal(false);
-      await fetchAllocations();
-      setTimeout(() => setSaveSuccess(''), 3000);
-      
+        // Validate that we have an eventId
+        if (!eventId) {
+            setSaveError('This allocation is not associated with an event. Please contact support.');
+            setIsSaving(false);
+            return;
+        }
+
+        const guestData = {
+            idNumber: guestForm.idNumber.trim(),
+            name: guestForm.name.trim(),
+            surname: guestForm.surname.trim(),
+            diet: guestForm.diet,
+            attendance: guestForm.attendance,
+            allocationId: selectedAllocation.allocationId,
+            eventId: eventId, // Use the eventId from the allocation
+        };
+
+        const response = await apiCall('/api/Sponsor/register-guest', 'POST', guestData);
+        console.log('✅ Guest registered successfully:', response);
+        
+        setSaveSuccess(`✅ Guest registered successfully! Remaining slots: ${response.remainingSlots}`);
+        setShowGuestModal(false);
+        await fetchAllocations();
+        setTimeout(() => setSaveSuccess(''), 3000);
+        
     } catch (error) {
-      console.error('❌ Error registering guest:', error);
-      setSaveError(error.message || 'Failed to register guest');
-      setTimeout(() => setSaveError(''), 5000);
+        console.error('❌ Error registering guest:', error);
+        
+        if (error.message?.includes('Guest limit reached')) {
+            setSaveError('Guest limit reached for this allocation');
+        } else if (error.message?.includes('ID number is already registered')) {
+            setSaveError('This ID number is already registered for this allocation');
+        } else if (error.message?.includes('does not match the allocation')) {
+            setSaveError('Event mismatch. Please contact support.');
+        } else {
+            setSaveError(error.message || 'Failed to register guest');
+        }
+        setTimeout(() => setSaveError(''), 5000);
     } finally {
-      setIsSaving(false);
+        setIsSaving(false);
     }
-  };
+};
 
   // ============================================================
   // UI HELPERS
