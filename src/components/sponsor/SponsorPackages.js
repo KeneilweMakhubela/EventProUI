@@ -5,7 +5,9 @@ import Modal from '../Modal';
 const SponsorPackages = () => {
   const { apiCall, user } = useAuth();
   const [packages, setPackages] = useState([]);
+  const [events, setEvents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
   const [saveError, setSaveError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -31,7 +33,10 @@ const SponsorPackages = () => {
     premiumBranding: false,
     isActive: true,
   });
-  const [requestNotes, setRequestNotes] = useState('');
+  const [requestData, setRequestData] = useState({
+    notes: '',
+    eventId: '',
+  });
 
   // Check if user is admin
   useEffect(() => {
@@ -63,6 +68,30 @@ const SponsorPackages = () => {
       setTimeout(() => setSaveError(''), 3000);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  // Fetch events for the request modal
+  const fetchEvents = async () => {
+    setIsLoadingEvents(true);
+    try {
+      const response = await apiCall('/api/Events', 'GET');
+      console.log('📥 Events response:', response);
+      
+      let eventsData = [];
+      if (Array.isArray(response)) {
+        eventsData = response;
+      } else if (response && response.items) {
+        eventsData = response.items;
+      } else if (response && response.data) {
+        eventsData = response.data;
+      }
+      
+      setEvents(eventsData);
+    } catch (error) {
+      console.error('❌ Error fetching events:', error);
+    } finally {
+      setIsLoadingEvents(false);
     }
   };
 
@@ -237,14 +266,33 @@ const SponsorPackages = () => {
   // SPONSOR PACKAGE REQUEST
   // ============================================================
 
-  const openRequestModal = (pkg) => {
+  const openRequestModal = async (pkg) => {
     setSelectedPackage(pkg);
-    setRequestNotes('');
+    setRequestData({
+      notes: '',
+      eventId: '',
+    });
     setShowRequestModal(true);
+    // Fetch events when modal opens
+    await fetchEvents();
+  };
+
+  const handleRequestChange = (e) => {
+    const { name, value } = e.target;
+    setRequestData(prev => ({
+      ...prev,
+      [name]: value
+    }));
   };
 
   const handleRequestPackage = async () => {
     if (!selectedPackage) return;
+
+    // Validate that an event is selected
+    if (!requestData.eventId) {
+      setSaveError('Please select an event to sponsor');
+      return;
+    }
 
     setIsSaving(true);
     setSaveError('');
@@ -253,7 +301,8 @@ const SponsorPackages = () => {
     try {
       const response = await apiCall('/api/Sponsor/request-package', 'POST', {
         packageId: selectedPackage.packageId,
-        notes: requestNotes.trim() || null,
+        eventId: parseInt(requestData.eventId),
+        notes: requestData.notes.trim() || null,
       });
       
       console.log('✅ Package request response:', response);
@@ -700,11 +749,43 @@ const SponsorPackages = () => {
               <p className="text-sm text-blue-700 mt-1">{selectedPackage.description}</p>
             </div>
 
+            {/* Event Selection - NEW */}
+            <div className="mb-4">
+              <label className="text-sm font-medium text-gray-600 mb-1 block">
+                Select Event to Sponsor <span className="text-red-500">*</span>
+              </label>
+              <select
+                name="eventId"
+                value={requestData.eventId}
+                onChange={handleRequestChange}
+                className="w-full p-3 rounded-2xl border-2 border-gray-200 bg-gray-50 focus:border-[#02a2e0] outline-none"
+                disabled={isLoadingEvents}
+              >
+                <option value="">Select an event...</option>
+                {events.map((event) => (
+                  <option key={event.id || event.eventId} value={event.id || event.eventId}>
+                    {event.name || event.eventName} - {event.startDateTime ? new Date(event.startDateTime).toLocaleDateString() : ''}
+                  </option>
+                ))}
+              </select>
+              {isLoadingEvents && (
+                <p className="text-xs text-gray-400 mt-1">
+                  <i className="fas fa-spinner fa-spin mr-1"></i> Loading events...
+                </p>
+              )}
+              {events.length === 0 && !isLoadingEvents && (
+                <p className="text-xs text-yellow-600 mt-1">
+                  <i className="fas fa-exclamation-triangle mr-1"></i> No events available. Please contact admin.
+                </p>
+              )}
+            </div>
+
             <div className="mb-4">
               <label className="text-sm font-medium text-gray-600 mb-1 block">Additional Notes (Optional)</label>
               <textarea
-                value={requestNotes}
-                onChange={(e) => setRequestNotes(e.target.value)}
+                name="notes"
+                value={requestData.notes}
+                onChange={handleRequestChange}
                 rows="3"
                 placeholder="Any specific requirements or questions about this package..."
                 className="w-full p-3 rounded-2xl border-2 border-gray-200 bg-gray-50 focus:border-[#02a2e0] outline-none resize-none"
@@ -714,7 +795,7 @@ const SponsorPackages = () => {
             <div className="flex gap-3">
               <button
                 onClick={handleRequestPackage}
-                disabled={isSaving}
+                disabled={isSaving || !requestData.eventId}
                 className="flex-1 btn-primary-gradient text-white px-6 py-3 rounded-full font-semibold flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isSaving ? (
