@@ -23,7 +23,7 @@ const Sidebar = ({ currentRole, currentView, onNavigate, isOpen, onClose }) => {
       { view: 'sponsor-profile', icon: 'fa-building', label: 'Profile' },
       { view: 'sponsor-packages', icon: 'fa-gift', label: 'Available Packages' },
       { view: 'sponsor-allocations', icon: 'fa-check-circle', label: 'Allocated Packages' },
-      { view: 'sponsor-allocated-players', icon: 'fa-user-plus', label: 'Allocated Players' }, // ✅ NEW
+      { view: 'sponsor-allocated-players', icon: 'fa-user-plus', label: 'Members' }, // ✅ NEW
       { view: 'sponsor-rsvps', icon: 'fa-calendar-check', label: 'My RSVPs' },
     ]}
   ];

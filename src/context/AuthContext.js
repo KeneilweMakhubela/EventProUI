@@ -199,50 +199,71 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      console.log('📝 Attempting registration...');
-      const response = await apiCall('/api/Auth/register', 'POST', {
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        email: userData.email,
-        phoneNumber: userData.phone,
-        password: userData.password || 'DefaultPass123!',
-      });
+        console.log('📝 Attempting registration...');
+        const response = await apiCall('/api/Auth/register', 'POST', {
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            email: userData.email,
+            phoneNumber: userData.phone,
+            password: userData.password,
+            role: userData.role || 'player',
+        });
 
-      console.log('✅ Registration response:', response);
+        console.log('✅ Registration response:', response);
 
-      // Handle successful registration response
-      const newUser = {
-        id: response.id || response.userId || response.playerId,
-        email: response.email || userData.email,
-        name: response.name || response.fullName || `${userData.firstName} ${userData.lastName}`,
-        firstName: userData.firstName,
-        lastName: userData.lastName,
-        phone: response.phoneNumber || userData.phone,
-        role: response.role || userData.role || 'player',
-        avatar: userData.firstName.charAt(0).toUpperCase(),
-      };
+        const newUser = {
+            id: response.id || response.userId || response.playerId,
+            email: response.email || userData.email,
+            name: response.name || response.fullName || `${userData.firstName} ${userData.lastName}`,
+            firstName: userData.firstName,
+            lastName: userData.lastName,
+            phone: response.phoneNumber || userData.phone,
+            role: response.role || userData.role || 'player',
+            avatar: userData.firstName.charAt(0).toUpperCase(),
+        };
 
-      const token = response.token || response.accessToken || response.jwt;
+        const token = response.token || response.accessToken || response.jwt;
 
-      setUser(newUser);
-      setAuthToken(token);
-      setIsAuthenticated(true);
-      
-      localStorage.setItem('eventProUser', JSON.stringify(newUser));
-      if (token) {
-        localStorage.setItem('eventProToken', token);
-      }
+        setUser(newUser);
+        setAuthToken(token);
+        setIsAuthenticated(true);
+        
+        localStorage.setItem('eventProUser', JSON.stringify(newUser));
+        if (token) {
+            localStorage.setItem('eventProToken', token);
+        }
 
-      console.log('✅ Registration successful, user:', newUser);
-      return { success: true, user: newUser, token };
+        console.log('✅ Registration successful, user:', newUser);
+        return { success: true, user: newUser, token };
     } catch (error) {
-      console.error('❌ Registration error:', error);
-      return { 
-        success: false, 
-        error: error.message || 'Registration failed. Please try again.' 
-      };
+        console.error('❌ Registration error:', error);
+        
+        // Check if error has validation errors
+        if (error.errors) {
+            return { 
+                success: false, 
+                error: error.errors,
+                validationErrors: true
+            };
+        } else if (error.response?.data?.errors) {
+            return { 
+                success: false, 
+                error: error.response.data.errors,
+                validationErrors: true
+            };
+        } else if (error.response?.data?.message) {
+            return { 
+                success: false, 
+                error: error.response.data.message
+            };
+        } else {
+            return { 
+                success: false, 
+                error: error.message || 'Registration failed. Please try again.' 
+            };
+        }
     }
-  };
+};
 
   const logout = () => {
     setUser(null);

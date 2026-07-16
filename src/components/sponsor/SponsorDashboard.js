@@ -276,32 +276,73 @@ const SponsorDashboard = () => {
 
   const handleUploadPaymentProof = async () => {
     if (!paymentForm.file) {
-      setSaveError('Please select a file to upload');
-      return;
+        setSaveError('Please select a file to upload');
+        return;
+    }
+    if (!paymentForm.amount || parseFloat(paymentForm.amount) <= 0) {
+        setSaveError('Please enter a valid amount');
+        return;
+    }
+    if (!paymentForm.paymentDate) {
+        setSaveError('Please select a payment date');
+        return;
     }
 
     setIsSaving(true);
     setSaveError('');
+    
     const formData = new FormData();
-    formData.append('file', paymentForm.file);
-    formData.append('amount', paymentForm.amount);
-    formData.append('paymentDate', paymentForm.paymentDate);
-    formData.append('referenceNumber', paymentForm.referenceNumber || '');
+    formData.append('File', paymentForm.file);
+    formData.append('Amount', paymentForm.amount.toString());
+    formData.append('PaymentDate', paymentForm.paymentDate);
+    if (paymentForm.referenceNumber) {
+        formData.append('ReferenceNumber', paymentForm.referenceNumber);
+    }
 
     try {
-      await apiCall(`/api/Sponsor/upload-payment-proof/${paymentForm.allocationId}`, 'POST', formData);
-      setSaveSuccess('Payment proof uploaded successfully!');
-      await fetchSponsorData();
-      setShowPaymentModal(false);
-      setPaymentForm({ allocationId: '', amount: '', paymentDate: '', referenceNumber: '', file: null });
-      setTimeout(() => setSaveSuccess(''), 3000);
+        const token = localStorage.getItem('eventProToken');
+        const response = await fetch(`https://localhost:7119/api/Sponsor/upload-payment-proof/${paymentForm.allocationId}`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+            },
+            body: formData,
+        });
+
+        if (!response.ok) {
+            let errorMessage = 'Failed to upload payment proof';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.message || errorData.title || errorMessage;
+            } catch (e) {
+                // If response is not JSON
+                errorMessage = `Upload failed with status ${response.status}`;
+            }
+            throw new Error(errorMessage);
+        }
+
+        const data = await response.json();
+        console.log('✅ Payment proof uploaded:', data);
+        
+        setSaveSuccess('Payment proof uploaded successfully!');
+        await fetchSponsorData();
+        setShowPaymentModal(false);
+        setPaymentForm({ 
+            allocationId: '', 
+            amount: '', 
+            paymentDate: '', 
+            referenceNumber: '', 
+            file: null 
+        });
+        setTimeout(() => setSaveSuccess(''), 3000);
     } catch (error) {
-      console.error('❌ Error uploading payment proof:', error);
-      setSaveError(error.message || 'Failed to upload payment proof');
+        console.error('❌ Error uploading payment proof:', error);
+        setSaveError(error.message || 'Failed to upload payment proof');
+        setTimeout(() => setSaveError(''), 5000);
     } finally {
-      setIsSaving(false);
+        setIsSaving(false);
     }
-  };
+};
 
   // ============================================================
   // UI HELPERS

@@ -13,7 +13,8 @@ const AllocatedPlayers = () => {
   const [selectedAllocation, setSelectedAllocation] = useState(null);
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showGuestModal, setShowGuestModal] = useState(false);
-  
+  const [activeTab, setActiveTab] = useState({}); // Track active tab per allocation
+
   // Player Registration form - matches /api/Auth/register with confirm password
   const [registerForm, setRegisterForm] = useState({
     firstName: '',
@@ -71,7 +72,7 @@ const AllocatedPlayers = () => {
     try {
       const response = await apiCall('/api/Sponsor/my-allocations', 'GET');
       console.log('📥 Allocations response:', response);
-      
+
       let allocationsData = [];
       if (Array.isArray(response)) {
         allocationsData = response;
@@ -80,8 +81,15 @@ const AllocatedPlayers = () => {
       } else if (response && response.data) {
         allocationsData = response.data;
       }
-      
+
       setAllocations(allocationsData);
+
+      // Initialize active tabs - default to 'players' for each allocation
+      const initialTabs = {};
+      allocationsData.forEach(alloc => {
+        initialTabs[alloc.allocationId] = 'players';
+      });
+      setActiveTab(initialTabs);
     } catch (error) {
       console.error('❌ Error fetching allocations:', error);
       setSaveError('Failed to load allocations. Please refresh the page.');
@@ -107,17 +115,16 @@ const AllocatedPlayers = () => {
   const openGuestModal = (allocation) => {
     setSelectedAllocation(allocation);
     setGuestForm({
-        idNumber: '',
-        name: '',
-        surname: '',
-        diet: '',
-        attendance: '',
+      idNumber: '',
+      name: '',
+      surname: '',
+      diet: '',
+      attendance: '',
     });
-    // Log the allocation to see what eventId it has
     console.log('📦 Selected allocation:', allocation);
     console.log('📦 EventId from allocation:', allocation.eventId);
     setShowGuestModal(true);
-};
+  };
 
   const handleRegisterChange = (e) => {
     const { name, value } = e.target;
@@ -129,28 +136,34 @@ const AllocatedPlayers = () => {
     setGuestForm(prev => ({ ...prev, [name]: value }));
   };
 
+  const handleTabChange = (allocationId, tab) => {
+    setActiveTab(prev => ({
+      ...prev,
+      [allocationId]: tab
+    }));
+  };
+
   const handleRegisterPlayer = async () => {
     // Validate all fields
-    if (!registerForm.firstName.trim()) {
+    if (!registerForm.firstName || !registerForm.firstName.trim()) {
       setSaveError('First name is required');
       return;
     }
-    if (!registerForm.lastName.trim()) {
+    if (!registerForm.lastName || !registerForm.lastName.trim()) {
       setSaveError('Last name is required');
       return;
     }
-    if (!registerForm.email.trim()) {
+    if (!registerForm.email || !registerForm.email.trim()) {
       setSaveError('Email is required');
       return;
     }
-    
-    // Email format validation
+
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(registerForm.email.trim())) {
       setSaveError('Please enter a valid email address');
       return;
     }
-    
+
     if (!registerForm.password) {
       setSaveError('Password is required');
       return;
@@ -159,8 +172,7 @@ const AllocatedPlayers = () => {
       setSaveError('Password must be at least 6 characters');
       return;
     }
-    
-    // Confirm password validation
+
     if (!registerForm.confirmPassword) {
       setSaveError('Please confirm your password');
       return;
@@ -175,29 +187,43 @@ const AllocatedPlayers = () => {
     setSaveSuccess('');
 
     try {
-      // Send data exactly as the endpoint expects (without confirmPassword)
-      const userData = {
+      const eventId = selectedAllocation.eventId;
+
+      if (!eventId) {
+        setSaveError('This allocation is not associated with an event. Please contact support.');
+        setIsSaving(false);
+        return;
+      }
+
+      const playerData = {
         firstName: registerForm.firstName.trim(),
         lastName: registerForm.lastName.trim(),
         email: registerForm.email.trim(),
-        phoneNumber: registerForm.phoneNumber.trim() || null,
+        phoneNumber: registerForm.phoneNumber?.trim() || null,
         password: registerForm.password,
+        allocationId: selectedAllocation.allocationId,
+        eventId: eventId,
       };
 
-      console.log('📤 Registering user:', userData);
-      await apiCall('/api/Auth/register', 'POST', userData);
-      console.log('✅ User registered successfully');
-      
-      setSaveSuccess('✅ Player registered successfully!');
+      console.log('📤 Registering player via sponsor endpoint:', playerData);
+      const response = await apiCall('/api/Sponsor/register-player', 'POST', playerData);
+      console.log('✅ Player registered successfully:', response);
+
+      setSaveSuccess(`✅ Player registered successfully! Remaining slots: ${response.remainingSlots}`);
       setShowRegisterModal(false);
       await fetchAllocations();
       setTimeout(() => setSaveSuccess(''), 3000);
-      
     } catch (error) {
-      console.error('❌ Error registering user:', error);
-      
-      if (error.message?.includes('Email already registered')) {
+      console.error('❌ Error registering player:', error);
+
+      if (error.message?.includes('Player limit reached')) {
+        setSaveError('Player limit reached for this allocation');
+      } else if (error.message?.includes('Email already registered')) {
         setSaveError('This email is already registered. Please use a different email.');
+      } else if (error.message?.includes('already registered for this allocation')) {
+        setSaveError('This player is already registered for this allocation');
+      } else if (error.message?.includes('does not match the allocation')) {
+        setSaveError('Event mismatch. Please contact support.');
       } else {
         setSaveError(error.message || 'Failed to register player');
       }
@@ -210,28 +236,28 @@ const AllocatedPlayers = () => {
   const handleRegisterGuest = async () => {
     // Validate guest form
     if (!guestForm.idNumber.trim()) {
-        setSaveError('ID number is required');
-        return;
+      setSaveError('ID number is required');
+      return;
     }
     if (guestForm.idNumber.length < 6) {
-        setSaveError('Please enter a valid ID number');
-        return;
+      setSaveError('Please enter a valid ID number');
+      return;
     }
     if (!guestForm.name.trim()) {
-        setSaveError('Name is required');
-        return;
+      setSaveError('Name is required');
+      return;
     }
     if (!guestForm.surname.trim()) {
-        setSaveError('Surname is required');
-        return;
+      setSaveError('Surname is required');
+      return;
     }
     if (!guestForm.diet) {
-        setSaveError('Please select a dietary requirement');
-        return;
+      setSaveError('Please select a dietary requirement');
+      return;
     }
     if (!guestForm.attendance) {
-        setSaveError('Please select attendance type');
-        return;
+      setSaveError('Please select attendance type');
+      return;
     }
 
     setIsSaving(true);
@@ -239,61 +265,58 @@ const AllocatedPlayers = () => {
     setSaveSuccess('');
 
     try {
-        // Use the eventId from the selected allocation
-        const eventId = selectedAllocation.eventId;
-        
-        console.log('📤 Registering guest with data:', {
-            idNumber: guestForm.idNumber.trim(),
-            name: guestForm.name.trim(),
-            surname: guestForm.surname.trim(),
-            diet: guestForm.diet,
-            attendance: guestForm.attendance,
-            allocationId: selectedAllocation.allocationId,
-            eventId: eventId,
-        });
+      const eventId = selectedAllocation.eventId;
 
-        // Validate that we have an eventId
-        if (!eventId) {
-            setSaveError('This allocation is not associated with an event. Please contact support.');
-            setIsSaving(false);
-            return;
-        }
+      console.log('📤 Registering guest with data:', {
+        idNumber: guestForm.idNumber.trim(),
+        name: guestForm.name.trim(),
+        surname: guestForm.surname.trim(),
+        diet: guestForm.diet,
+        attendance: guestForm.attendance,
+        allocationId: selectedAllocation.allocationId,
+        eventId: eventId,
+      });
 
-        const guestData = {
-            idNumber: guestForm.idNumber.trim(),
-            name: guestForm.name.trim(),
-            surname: guestForm.surname.trim(),
-            diet: guestForm.diet,
-            attendance: guestForm.attendance,
-            allocationId: selectedAllocation.allocationId,
-            eventId: eventId, // Use the eventId from the allocation
-        };
-
-        const response = await apiCall('/api/Sponsor/register-guest', 'POST', guestData);
-        console.log('✅ Guest registered successfully:', response);
-        
-        setSaveSuccess(`✅ Guest registered successfully! Remaining slots: ${response.remainingSlots}`);
-        setShowGuestModal(false);
-        await fetchAllocations();
-        setTimeout(() => setSaveSuccess(''), 3000);
-        
-    } catch (error) {
-        console.error('❌ Error registering guest:', error);
-        
-        if (error.message?.includes('Guest limit reached')) {
-            setSaveError('Guest limit reached for this allocation');
-        } else if (error.message?.includes('ID number is already registered')) {
-            setSaveError('This ID number is already registered for this allocation');
-        } else if (error.message?.includes('does not match the allocation')) {
-            setSaveError('Event mismatch. Please contact support.');
-        } else {
-            setSaveError(error.message || 'Failed to register guest');
-        }
-        setTimeout(() => setSaveError(''), 5000);
-    } finally {
+      if (!eventId) {
+        setSaveError('This allocation is not associated with an event. Please contact support.');
         setIsSaving(false);
+        return;
+      }
+
+      const guestData = {
+        idNumber: guestForm.idNumber.trim(),
+        name: guestForm.name.trim(),
+        surname: guestForm.surname.trim(),
+        diet: guestForm.diet,
+        attendance: guestForm.attendance,
+        allocationId: selectedAllocation.allocationId,
+        eventId: eventId,
+      };
+
+      const response = await apiCall('/api/Sponsor/register-guest', 'POST', guestData);
+      console.log('✅ Guest registered successfully:', response);
+
+      setSaveSuccess(`✅ Guest registered successfully! Remaining slots: ${response.remainingSlots}`);
+      setShowGuestModal(false);
+      await fetchAllocations();
+      setTimeout(() => setSaveSuccess(''), 3000);
+    } catch (error) {
+      console.error('❌ Error registering guest:', error);
+
+      if (error.message?.includes('Guest limit reached')) {
+        setSaveError('Guest limit reached for this allocation');
+      } else if (error.message?.includes('ID number is already registered')) {
+        setSaveError('This ID number is already registered for this allocation');
+      } else if (error.message?.includes('does not match the allocation')) {
+        setSaveError('Event mismatch. Please contact support.');
+      } else {
+        setSaveError(error.message || 'Failed to register guest');
+      }
+      setTimeout(() => setSaveError(''), 5000);
+    } finally {
+      setIsSaving(false);
     }
-};
+  };
 
   // ============================================================
   // UI HELPERS
@@ -342,7 +365,7 @@ const AllocatedPlayers = () => {
   return (
     <div>
       <div className="flex items-center gap-2 text-2xl font-bold text-[#132149] mb-6">
-        <i className="fas fa-user-plus text-[#02a2e0]"></i> Allocated Players
+        <i className="fas fa-user-plus text-[#02a2e0]"></i> Allocated Players & Guests
       </div>
 
       {/* Success/Error Messages */}
@@ -372,84 +395,175 @@ const AllocatedPlayers = () => {
           <p className="text-sm text-gray-400 mt-2">You haven't been allocated any packages yet.</p>
         </div>
       ) : (
-        allocations.map(allocation => (
-          <div key={allocation.allocationId} className="card-gradient rounded-3xl p-6 shadow-sm border border-gray-100 mb-6">
-            {/* Allocation Header */}
-            <div className="flex flex-wrap items-center justify-between mb-4 pb-4 border-b border-gray-200">
-              <div>
-                <h3 className="text-lg font-bold text-[#132149]">
-                  {allocation.packageName}
-                </h3>
-                <p className="text-sm text-gray-500">
-                  {formatCurrency(allocation.packagePrice)} • {new Date(allocation.allocatedDate).toLocaleDateString()}
-                </p>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(allocation.status)}`}>
-                    {allocation.status}
-                  </span>
-                  <span className="text-xs text-gray-400">
-                    Players: {allocation.players?.length || 0}/{allocation.golfPlayers || 0}
-                  </span>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => openRegisterModal(allocation)}
-                  className="btn-primary-gradient text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2"
-                >
-                  <i className="fas fa-user-plus"></i> Register Player
-                </button>
-                <button
-                  onClick={() => openGuestModal(allocation)}
-                  className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 transition-colors"
-                >
-                  <i className="fas fa-user-friends"></i> Add Guest
-                </button>
-              </div>
-            </div>
+        allocations.map(allocation => {
+          const currentTab = activeTab[allocation.allocationId] || 'players';
+          const playerCount = allocation.players?.length || 0;
+          const guestCount = allocation.guests?.length || 0;
+          const maxPlayers = allocation.golfPlayers || 0;
+          const maxGuests = allocation.maxGuests || 0;
 
-            {/* Players List */}
-            {allocation.players && allocation.players.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {allocation.players.map(player => (
-                  <div key={player.playerId} className="bg-gray-50 rounded-xl p-4 border border-gray-200">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#02a2e0] to-[#00a5df] flex items-center justify-center text-white font-bold text-sm">
-                        {getInitials(player.firstName, player.lastName)}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-[#132149]">
-                          {player.firstName} {player.lastName}
-                        </p>
-                        <p className="text-xs text-gray-500">{player.email}</p>
-                      </div>
-                    </div>
+          return (
+            <div key={allocation.allocationId} className="card-gradient rounded-3xl p-6 shadow-sm border border-gray-100 mb-6">
+              {/* Allocation Header */}
+              <div className="flex flex-wrap items-center justify-between mb-4 pb-4 border-b border-gray-200">
+                <div>
+                  <h3 className="text-lg font-bold text-[#132149]">
+                    {allocation.packageName}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    {formatCurrency(allocation.packagePrice)} • {new Date(allocation.allocatedDate).toLocaleDateString()}
+                  </p>
+                  <div className="flex items-center gap-2 mt-1 flex-wrap">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getStatusBadge(allocation.status)}`}>
+                      {allocation.status}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      <i className="fas fa-user mr-1"></i>
+                      Players: {playerCount}/{maxPlayers}
+                    </span>
+                    <span className="text-xs text-gray-400">
+                      <i className="fas fa-user-friends mr-1"></i>
+                      Guests: {guestCount}/{maxGuests}
+                    </span>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8 bg-gray-50 rounded-xl">
-                <i className="fas fa-users text-3xl text-gray-300 mb-2"></i>
-                <p className="text-gray-400 text-sm">No players registered yet</p>
-                <div className="flex gap-2 justify-center mt-2">
+                </div>
+                <div className="flex gap-2 mt-2 sm:mt-0">
                   <button
                     onClick={() => openRegisterModal(allocation)}
-                    className="text-sm text-[#02a2e0] hover:text-[#0284c7] font-medium"
+                    className="btn-primary-gradient text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2"
                   >
-                    <i className="fas fa-user-plus mr-1"></i> Register player
+                    <i className="fas fa-user-plus"></i> Register Player
                   </button>
-                  <span className="text-gray-300">|</span>
                   <button
                     onClick={() => openGuestModal(allocation)}
-                    className="text-sm text-purple-500 hover:text-purple-600 font-medium"
+                    className="bg-purple-500 hover:bg-purple-600 text-white px-4 py-2 rounded-full text-sm font-semibold flex items-center gap-2 transition-colors"
                   >
-                    <i className="fas fa-user-friends mr-1"></i> Add guest
+                    <i className="fas fa-user-friends"></i> Add Guest
                   </button>
                 </div>
               </div>
-            )}
-          </div>
-        ))
+
+              {/* Tabs */}
+              <div className="flex border-b border-gray-200 mb-4">
+                <button
+                  onClick={() => handleTabChange(allocation.allocationId, 'players')}
+                  className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+                    currentTab === 'players'
+                      ? 'text-[#02a2e0] border-b-2 border-[#02a2e0]'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <i className="fas fa-user mr-2"></i>
+                  Players ({playerCount})
+                </button>
+                <button
+                  onClick={() => handleTabChange(allocation.allocationId, 'guests')}
+                  className={`px-4 py-2 text-sm font-medium transition-colors relative ${
+                    currentTab === 'guests'
+                      ? 'text-purple-500 border-b-2 border-purple-500'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <i className="fas fa-user-friends mr-2"></i>
+                  Guests ({guestCount})
+                </button>
+              </div>
+
+              {/* Tab Content - Players */}
+              {currentTab === 'players' && (
+                <div>
+                  {allocation.players && allocation.players.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {allocation.players.map(player => (
+                        <div key={player.id || player.playerId} className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#02a2e0] to-[#00a5df] flex items-center justify-center text-white font-bold text-sm">
+                              {getInitials(player.firstName, player.lastName)}
+                            </div>
+                            <div>
+                              <p className="font-semibold text-[#132149]">
+                                {player.firstName} {player.lastName}
+                              </p>
+                              <p className="text-xs text-gray-500">{player.email}</p>
+                              {player.phoneNumber && (
+                                <p className="text-xs text-gray-400">{player.phoneNumber}</p>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 rounded-xl">
+                      <i className="fas fa-users text-3xl text-gray-300 mb-2"></i>
+                      <p className="text-gray-400 text-sm">No players registered yet</p>
+                      <button
+                        onClick={() => openRegisterModal(allocation)}
+                        className="mt-2 text-sm text-[#02a2e0] hover:text-[#0284c7] font-medium"
+                      >
+                        <i className="fas fa-user-plus mr-1"></i> Register a player
+                      </button>
+                    </div>
+                  )}
+                  {playerCount > 0 && playerCount < maxPlayers && (
+                    <div className="mt-3 text-xs text-gray-400 text-center">
+                      {maxPlayers - playerCount} slot{maxPlayers - playerCount > 1 ? 's' : ''} remaining
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Tab Content - Guests */}
+              {currentTab === 'guests' && (
+                <div>
+                  {allocation.guests && allocation.guests.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {allocation.guests.map(guest => (
+                        <div key={guest.guestId} className="bg-gray-50 rounded-xl p-4 border border-gray-200 hover:shadow-md transition-shadow">
+                          <div className="flex items-start gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-400 to-purple-600 flex items-center justify-center text-white font-bold text-sm">
+                              {getInitials(guest.name, guest.surname)}
+                            </div>
+                            <div className="flex-1">
+                              <p className="font-semibold text-[#132149]">
+                                {guest.name} {guest.surname}
+                              </p>
+                              <p className="text-xs text-gray-500">ID: {guest.idNumber}</p>
+                              <div className="flex flex-wrap gap-1 mt-1">
+                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                  {guest.diet || 'No diet'}
+                                </span>
+                                <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full">
+                                  {guest.attendance || 'N/A'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 rounded-xl">
+                      <i className="fas fa-user-friends text-3xl text-gray-300 mb-2"></i>
+                      <p className="text-gray-400 text-sm">No guests registered yet</p>
+                      <button
+                        onClick={() => openGuestModal(allocation)}
+                        className="mt-2 text-sm text-purple-500 hover:text-purple-600 font-medium"
+                      >
+                        <i className="fas fa-user-friends mr-1"></i> Add a guest
+                      </button>
+                    </div>
+                  )}
+                  {guestCount > 0 && guestCount < maxGuests && (
+                    <div className="mt-3 text-xs text-gray-400 text-center">
+                      {maxGuests - guestCount} slot{maxGuests - guestCount > 1 ? 's' : ''} remaining
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })
       )}
 
       {/* ============================================================

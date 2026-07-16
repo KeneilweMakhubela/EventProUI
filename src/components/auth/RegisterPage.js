@@ -76,20 +76,42 @@ const RegisterPage = ({ onSwitchToLogin }) => {
   const handleApiErrors = (errorMessage) => {
     const newApiErrors = {};
     
-    // Parse error messages from API response
-    if (errorMessage.includes('email')) {
-      newApiErrors.email = errorMessage;
-    } else if (errorMessage.includes('password')) {
-      newApiErrors.password = errorMessage;
-    } else if (errorMessage.includes('phone')) {
-      newApiErrors.phone = errorMessage;
-    } else {
-      // General error
-      setRegisterError(errorMessage);
+    // Check if error is a string or an object
+    if (typeof errorMessage === 'string') {
+        // Parse error messages from API response
+        if (errorMessage.toLowerCase().includes('email')) {
+            newApiErrors.email = errorMessage;
+        } else if (errorMessage.toLowerCase().includes('password')) {
+            newApiErrors.password = errorMessage;
+        } else if (errorMessage.toLowerCase().includes('phone')) {
+            newApiErrors.phone = errorMessage;
+        } else if (errorMessage.toLowerCase().includes('first name')) {
+            newApiErrors.firstName = errorMessage;
+        } else if (errorMessage.toLowerCase().includes('last name')) {
+            newApiErrors.lastName = errorMessage;
+        } else {
+            setRegisterError(errorMessage);
+        }
+    } else if (typeof errorMessage === 'object') {
+        // Handle object errors
+        Object.keys(errorMessage).forEach(key => {
+            const fieldMap = {
+                'FirstName': 'firstName',
+                'LastName': 'lastName',
+                'Email': 'email',
+                'PhoneNumber': 'phone',
+                'Password': 'password',
+                'ConfirmPassword': 'confirmPassword'
+            };
+            const mappedKey = fieldMap[key] || key;
+            newApiErrors[mappedKey] = Array.isArray(errorMessage[key]) 
+                ? errorMessage[key].join(', ') 
+                : errorMessage[key];
+        });
     }
     
     setApiErrors(newApiErrors);
-  };
+};
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -97,37 +119,68 @@ const RegisterPage = ({ onSwitchToLogin }) => {
     setApiErrors({});
     
     if (step === 1) {
-      if (validateStep1()) {
-        setStep(2);
-      }
-    } else {
-      if (validateStep2()) {
-        setIsLoading(true);
-        
-        try {
-          const result = await register({
-            firstName: formData.firstName,
-            lastName: formData.lastName,
-            email: formData.email,
-            phone: formData.phone,
-            password: formData.password,
-            role: formData.role,
-          });
-          
-          if (result.success) {
-            // Registration successful - reload will happen in App.js
-            window.location.reload();
-          } else {
-            handleApiErrors(result.error);
-          }
-        } catch (error) {
-          setRegisterError(error.message || 'Registration failed. Please try again.');
-        } finally {
-          setIsLoading(false);
+        if (validateStep1()) {
+            setStep(2);
         }
-      }
+    } else {
+        if (validateStep2()) {
+            setIsLoading(true);
+            
+            try {
+                const result = await register({
+                    firstName: formData.firstName,
+                    lastName: formData.lastName,
+                    email: formData.email,
+                    phone: formData.phone,
+                    password: formData.password,
+                    role: formData.role,
+                });
+                
+                if (result.success) {
+                    // Registration successful
+                    window.location.reload();
+                } else {
+                    // Check if it's validation errors
+                    if (result.validationErrors) {
+                        // result.error contains the validation errors object
+                        const newApiErrors = {};
+                        const errorData = result.error;
+                        
+                        // Map backend field names to frontend field names
+                        const fieldMap = {
+                            'FirstName': 'firstName',
+                            'LastName': 'lastName',
+                            'Email': 'email',
+                            'PhoneNumber': 'phone',
+                            'Password': 'password',
+                            'ConfirmPassword': 'confirmPassword',
+                            'Role': 'role'
+                        };
+                        
+                        Object.keys(errorData).forEach(key => {
+                            const mappedKey = fieldMap[key] || key;
+                            newApiErrors[mappedKey] = Array.isArray(errorData[key]) 
+                                ? errorData[key].join(', ') 
+                                : errorData[key];
+                        });
+                        
+                        setApiErrors(newApiErrors);
+                        setRegisterError('Please fix the highlighted fields.');
+                    } else if (typeof result.error === 'string') {
+                        handleApiErrors(result.error);
+                    } else {
+                        handleApiErrors(JSON.stringify(result.error));
+                    }
+                }
+            } catch (error) {
+                console.error('Registration error:', error);
+                setRegisterError(error.message || 'Registration failed. Please try again.');
+            } finally {
+                setIsLoading(false);
+            }
+        }
     }
-  };
+};
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
