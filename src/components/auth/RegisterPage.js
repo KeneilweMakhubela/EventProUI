@@ -11,7 +11,7 @@ const RegisterPage = ({ onSwitchToLogin }) => {
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'player',
+    role: 'sponsor',
     agreeTerms: false,
   });
   const [errors, setErrors] = useState({});
@@ -76,9 +76,7 @@ const RegisterPage = ({ onSwitchToLogin }) => {
   const handleApiErrors = (errorMessage) => {
     const newApiErrors = {};
     
-    // Check if error is a string or an object
     if (typeof errorMessage === 'string') {
-        // Parse error messages from API response
         if (errorMessage.toLowerCase().includes('email')) {
             newApiErrors.email = errorMessage;
         } else if (errorMessage.toLowerCase().includes('password')) {
@@ -93,7 +91,6 @@ const RegisterPage = ({ onSwitchToLogin }) => {
             setRegisterError(errorMessage);
         }
     } else if (typeof errorMessage === 'object') {
-        // Handle object errors
         Object.keys(errorMessage).forEach(key => {
             const fieldMap = {
                 'FirstName': 'firstName',
@@ -111,7 +108,7 @@ const RegisterPage = ({ onSwitchToLogin }) => {
     }
     
     setApiErrors(newApiErrors);
-};
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -137,16 +134,12 @@ const RegisterPage = ({ onSwitchToLogin }) => {
                 });
                 
                 if (result.success) {
-                    // Registration successful
                     window.location.reload();
                 } else {
-                    // Check if it's validation errors
                     if (result.validationErrors) {
-                        // result.error contains the validation errors object
                         const newApiErrors = {};
                         const errorData = result.error;
                         
-                        // Map backend field names to frontend field names
                         const fieldMap = {
                             'FirstName': 'firstName',
                             'LastName': 'lastName',
@@ -180,7 +173,7 @@ const RegisterPage = ({ onSwitchToLogin }) => {
             }
         }
     }
-};
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -282,68 +275,31 @@ const RegisterPage = ({ onSwitchToLogin }) => {
           <form onSubmit={handleSubmit} className="space-y-5">
             {step === 1 ? (
               <>
-                {/* Role Selection */}
+                {/* Role Selection - Centered with only Sponsor button */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    I want to
-                  </label>
-                  <div className="grid grid-cols-3 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, role: 'player' }))}
-                      className={`flex flex-col items-center justify-center gap-1 px-3 py-3 rounded-2xl font-semibold transition-all duration-200 text-xs ${
-                        formData.role === 'player'
-                          ? 'bg-[#02a2e0] text-white shadow-lg shadow-cyan-500/40'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      <i className="fas fa-user text-lg"></i>
-                      <span>Attend</span>
-                    </button>
+                  <div className="flex justify-center">
                     <button
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, role: 'sponsor' }))}
-                      className={`flex flex-col items-center justify-center gap-1 px-3 py-3 rounded-2xl font-semibold transition-all duration-200 text-xs ${
+                      className={`flex flex-col items-center justify-center gap-2 px-8 py-4 rounded-2xl font-semibold transition-all duration-200 ${
                         formData.role === 'sponsor'
                           ? 'bg-[#02a2e0] text-white shadow-lg shadow-cyan-500/40'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                       }`}
                     >
-                      <i className="fas fa-star text-lg"></i>
-                      <span>Sponsor</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFormData(prev => ({ ...prev, role: 'admin' }))}
-                      className={`flex flex-col items-center justify-center gap-1 px-3 py-3 rounded-2xl font-semibold transition-all duration-200 text-xs ${
-                        formData.role === 'admin'
-                          ? 'bg-[#02a2e0] text-white shadow-lg shadow-cyan-500/40'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                      }`}
-                    >
-                      <i className="fas fa-shield-alt text-lg"></i>
-                      <span>Manage</span>
+                      <i className="fas fa-star text-2xl"></i>
+                      <span className="text-sm">Sponsor</span>
                     </button>
                   </div>
                   
                   {/* Role Description */}
                   <div className="mt-3 p-3 bg-blue-50 rounded-2xl border border-blue-100">
                     <div className="flex items-start gap-2">
-                      <i className={`fas ${
-                        formData.role === 'player' ? 'fa-user' : 
-                        formData.role === 'sponsor' ? 'fa-star' : 
-                        'fa-shield-alt'
-                      } text-[#02a2e0] mt-0.5`}></i>
+                      <i className="fas fa-star text-[#02a2e0] mt-0.5"></i>
                       <div>
-                        <p className="text-sm font-semibold text-[#132149]">
-                          {formData.role === 'player' && 'Event Attendee'}
-                          {formData.role === 'sponsor' && 'Event Sponsor'}
-                          {formData.role === 'admin' && 'Event Manager'}
-                        </p>
+                        <p className="text-sm font-semibold text-[#132149]">Event Sponsor</p>
                         <p className="text-xs text-gray-500 mt-0.5">
-                          {formData.role === 'player' && 'Discover events, RSVP, and manage your bookings'}
-                          {formData.role === 'sponsor' && 'Sponsor events, manage contributions, and track impact'}
-                          {formData.role === 'admin' && 'Create events, manage players, and oversee operations'}
+                          Sponsor events, manage contributions, and track impact
                         </p>
                       </div>
                     </div>
@@ -478,19 +434,9 @@ const RegisterPage = ({ onSwitchToLogin }) => {
                     <p><span className="font-medium">Phone:</span> {formData.phone}</p>
                     <p>
                       <span className="font-medium">Role:</span> 
-                      <span className={`inline-flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
-                        formData.role === 'admin' 
-                          ? 'bg-purple-100 text-purple-800' 
-                          : formData.role === 'sponsor'
-                            ? 'bg-yellow-100 text-yellow-800'
-                            : 'bg-green-100 text-green-800'
-                      }`}>
-                        <i className={`fas ${
-                          formData.role === 'admin' ? 'fa-shield-alt' : 
-                          formData.role === 'sponsor' ? 'fa-star' : 
-                          'fa-user'
-                        } text-xs`}></i>
-                        {getRoleLabel(formData.role)}
+                      <span className="inline-flex items-center gap-1 ml-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                        <i className="fas fa-star text-xs"></i>
+                        Event Sponsor
                       </span>
                     </p>
                   </div>

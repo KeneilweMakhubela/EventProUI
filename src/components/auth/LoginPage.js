@@ -124,49 +124,7 @@ const LoginPage = ({ onSwitchToRegister }) => {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Role Selection */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Sign in as
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, role: 'player' }))}
-                  className={`flex flex-col items-center justify-center gap-1 px-3 py-3 rounded-2xl font-semibold transition-all duration-200 text-xs ${
-                    formData.role === 'player'
-                      ? 'bg-[#02a2e0] text-white shadow-lg shadow-cyan-500/40'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <i className="fas fa-user text-lg"></i>
-                  <span>Attendee</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, role: 'sponsor' }))}
-                  className={`flex flex-col items-center justify-center gap-1 px-3 py-3 rounded-2xl font-semibold transition-all duration-200 text-xs ${
-                    formData.role === 'sponsor'
-                      ? 'bg-[#02a2e0] text-white shadow-lg shadow-cyan-500/40'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <i className="fas fa-star text-lg"></i>
-                  <span>Sponsor</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, role: 'admin' }))}
-                  className={`flex flex-col items-center justify-center gap-1 px-3 py-3 rounded-2xl font-semibold transition-all duration-200 text-xs ${
-                    formData.role === 'admin'
-                      ? 'bg-[#02a2e0] text-white shadow-lg shadow-cyan-500/40'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                  }`}
-                >
-                  <i className="fas fa-shield-alt text-lg"></i>
-                  <span>Admin</span>
-                </button>
-              </div>
-            </div>
+            
 
             {/* Email */}
             <div>
