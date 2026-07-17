@@ -4,6 +4,7 @@ import TopBar from './components/TopBar';
 import Sidebar from './components/Sidebar';
 import AdminDashboard from './components/admin/AdminDashboard';
 import AdminEvents from './components/admin/AdminEvents';
+import PackageManagement from './components/admin/PackageManagement';
 import AdminPlayers from './components/admin/AdminPlayers';
 import Sponsors from './components/admin/Sponsors';
 import Notifications from './components/admin/Notifications';
@@ -120,6 +121,8 @@ function AppContent() {
         return <Payments />;
       case 'reports':
         return <Reports />;
+        case 'packages':
+      return <PackageManagement />;
       default:
         return <AdminDashboard players={players} events={events} />;
     }
