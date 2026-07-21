@@ -9,12 +9,10 @@ const MyRsvps = () => {
   const [loadError, setLoadError] = useState('');
   const [showDetails, setShowDetails] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
-  const [showGuests, setShowGuests] = useState(false);
   const [showDietary, setShowDietary] = useState(false);
   const [showRequests, setShowRequests] = useState(false);
   const [selectedRsvp, setSelectedRsvp] = useState(null);
   const [editData, setEditData] = useState({});
-  const [guestCount, setGuestCount] = useState(1);
   const [dietary, setDietary] = useState('');
   const [requests, setRequests] = useState('');
   const [isSaving, setIsSaving] = useState(false);
@@ -148,7 +146,6 @@ const MyRsvps = () => {
     
     const success = await handleUpdateRsvp(selectedRsvp.id, {
       status: editData.status || selectedRsvp.status,
-      numberOfGuests: editData.guests || selectedRsvp.numberOfGuests || 1,
       dietaryRequirements: editData.dietaryRequirements || selectedRsvp.dietaryRequirements || '',
       specialRequests: editData.specialRequests || selectedRsvp.specialRequests || '',
     });
@@ -156,20 +153,6 @@ const MyRsvps = () => {
     if (success) {
       setShowEdit(false);
       alert('RSVP updated successfully!');
-    }
-  };
-
-  // Save guests
-  const handleSaveGuests = async () => {
-    if (!selectedRsvp) return;
-    
-    const success = await handleUpdateRsvp(selectedRsvp.id, {
-      numberOfGuests: guestCount,
-    });
-    
-    if (success) {
-      setShowGuests(false);
-      alert(`Guest count updated to ${guestCount}!`);
     }
   };
 
@@ -285,7 +268,6 @@ const MyRsvps = () => {
                       setSelectedRsvp(rsvp); 
                       setEditData({ 
                         status: rsvp.status || 'Attending',
-                        guests: numberOfGuests,
                         dietaryRequirements: dietaryRequirements,
                         specialRequests: specialRequests,
                       }); 
@@ -294,12 +276,6 @@ const MyRsvps = () => {
                     className="bg-white border border-gray-200 px-3 py-1.5 rounded-full text-xs font-semibold hover:bg-gray-50 transition-all"
                   >
                     <i className="fas fa-edit"></i> Edit RSVP
-                  </button>
-                  <button 
-                    onClick={() => { setSelectedRsvp(rsvp); setGuestCount(numberOfGuests); setShowGuests(true); }} 
-                    className="bg-white border border-gray-200 px-3 py-1.5 rounded-full text-xs font-semibold hover:bg-gray-50 transition-all"
-                  >
-                    <i className="fas fa-users"></i> Update Guests
                   </button>
                   <button 
                     onClick={() => { setSelectedRsvp(rsvp); setDietary(dietaryRequirements); setShowDietary(true); }} 
@@ -395,17 +371,6 @@ const MyRsvps = () => {
               </select>
             </div>
             <div>
-              <label className="text-sm font-medium text-gray-600 mb-1 block">Number of Guests</label>
-              <input 
-                type="number" 
-                value={editData.guests || 1} 
-                onChange={(e) => setEditData({...editData, guests: parseInt(e.target.value) || 1})} 
-                min="1" 
-                max="10" 
-                className="w-full p-3 rounded-2xl border border-gray-200 bg-gray-50" 
-              />
-            </div>
-            <div>
               <label className="text-sm font-medium text-gray-600 mb-1 block">Dietary Requirements</label>
               <select 
                 value={editData.dietaryRequirements || ''} 
@@ -442,36 +407,6 @@ const MyRsvps = () => {
               {isSaving ? 'Saving...' : '💾 Save Changes'}
             </button>
             <button onClick={() => setShowEdit(false)} className="flex-1 border border-gray-300 px-4 py-2.5 rounded-full font-semibold">
-              Cancel
-            </button>
-          </div>
-        </Modal>
-      )}
-
-      {/* Update Guests Modal */}
-      {showGuests && selectedRsvp && (
-        <Modal onClose={() => setShowGuests(false)}>
-          <h3 className="text-xl font-bold text-[#132149] mb-4">👥 Update Number of Guests</h3>
-          <p className="text-gray-500 mb-4">
-            Current: {selectedRsvp.numberOfGuests || selectedRsvp.guests || 1} {(selectedRsvp.numberOfGuests || selectedRsvp.guests || 1) === 1 ? 'guest' : 'guests'}
-          </p>
-          <input 
-            type="number" 
-            value={guestCount} 
-            onChange={(e) => setGuestCount(parseInt(e.target.value) || 1)} 
-            min="1" 
-            max="10" 
-            className="w-full p-3 rounded-2xl border border-gray-200 bg-gray-50 mb-4" 
-          />
-          <div className="flex gap-3">
-            <button 
-              onClick={handleSaveGuests} 
-              disabled={isSaving}
-              className="flex-1 btn-primary-gradient text-white px-4 py-2.5 rounded-full font-semibold disabled:opacity-50"
-            >
-              {isSaving ? 'Saving...' : 'Update'}
-            </button>
-            <button onClick={() => setShowGuests(false)} className="flex-1 border border-gray-300 px-4 py-2.5 rounded-full font-semibold">
               Cancel
             </button>
           </div>

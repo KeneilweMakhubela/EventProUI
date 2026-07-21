@@ -11,7 +11,7 @@ const RegisterPage = ({ onSwitchToLogin }) => {
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'sponsor',
+    role: 'Sponsor',
     agreeTerms: false,
   });
   const [errors, setErrors] = useState({});

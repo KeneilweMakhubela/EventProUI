@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import Modal from '../Modal';
 
@@ -13,6 +13,12 @@ const AdminEvents = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  
+  // Map states
+  const [showMap, setShowMap] = useState(false);
+  const [mapSearchQuery, setMapSearchQuery] = useState('');
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const geocodeTimeoutRef = useRef(null);
   
   // Form states
   const [formData, setFormData] = useState({
@@ -37,7 +43,7 @@ const AdminEvents = () => {
   const [saveSuccess, setSaveSuccess] = useState('');
   
   // Filter states
-  const [filter, setFilter] = useState('all'); // all, upcoming, past
+  const [filter, setFilter] = useState('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -90,6 +96,58 @@ const AdminEvents = () => {
     fetchEvents();
   }, [fetchEvents]);
 
+  // Geocode address using Nominatim (OpenStreetMap)
+  const geocodeAddress = useCallback(async (address) => {
+    if (!address || address.trim().length < 3) {
+      return;
+    }
+
+    setIsGeocoding(true);
+    
+    try {
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1&addressdetails=1`
+      );
+      const data = await response.json();
+      
+      if (data && data.length > 0) {
+        const { lat, lon, display_name } = data[0];
+        setFormData(prev => ({
+          ...prev,
+          latitude: lat,
+          longitude: lon,
+          venueAddress: display_name || address
+        }));
+        setShowMap(true);
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+    } finally {
+      setIsGeocoding(false);
+    }
+  }, []);
+
+  // Handle venue address change with debounced geocoding
+  const handleVenueAddressChange = (e) => {
+    const value = e.target.value;
+    setFormData(prev => ({
+      ...prev,
+      venueAddress: value
+    }));
+
+    // Clear previous timeout
+    if (geocodeTimeoutRef.current) {
+      clearTimeout(geocodeTimeoutRef.current);
+    }
+
+    // Only geocode if address has at least 3 characters
+    if (value && value.trim().length >= 3) {
+      geocodeTimeoutRef.current = setTimeout(() => {
+        geocodeAddress(value);
+      }, 800); // 800ms debounce delay
+    }
+  };
+
   // Open create/edit form
   const openEventForm = (event = null) => {
     if (event) {
@@ -99,8 +157,8 @@ const AdminEvents = () => {
         description: event.description || '',
         venueName: event.venueName || '',
         venueAddress: event.venueAddress || '',
-        latitude: event.latitude !== undefined ? event.latitude : '',
-        longitude: event.longitude !== undefined ? event.longitude : '',
+        latitude: event.latitude !== undefined && event.latitude !== null ? event.latitude : '',
+        longitude: event.longitude !== undefined && event.longitude !== null ? event.longitude : '',
         startDateTime: event.startDateTime ? event.startDateTime.slice(0, 16) : '',
         endDateTime: event.endDateTime ? event.endDateTime.slice(0, 16) : '',
         maxCapacity: event.maxCapacity !== undefined ? event.maxCapacity : '',
@@ -110,6 +168,13 @@ const AdminEvents = () => {
         isActive: event.isActive !== undefined ? event.isActive : true,
         customFields: event.customFields || []
       });
+      setMapSearchQuery(event.venueAddress || event.venueName || '');
+      // Show map if coordinates exist
+      if (event.latitude && event.longitude) {
+        setShowMap(true);
+      } else {
+        setShowMap(false);
+      }
     } else {
       setSelectedEvent(null);
       setFormData({
@@ -128,6 +193,8 @@ const AdminEvents = () => {
         isActive: true,
         customFields: []
       });
+      setMapSearchQuery('');
+      setShowMap(false);
     }
     setFormErrors({});
     setSaveError('');
@@ -135,12 +202,32 @@ const AdminEvents = () => {
     setShowFormModal(true);
   };
 
-  // Handle form field changes
+  // Handle form field changes (except venueAddress which has special handling)
   const handleFormChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
+    // If it's the venueAddress field, use the special handler
+    if (name === 'venueAddress') {
+      handleVenueAddressChange(e);
+      return;
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
+    }));
+    // Clear error for this field
+    if (formErrors[name]) {
+      setFormErrors(prev => ({ ...prev, [name]: '' }));
+    }
+  };
+
+  // Handle manual coordinate changes
+  const handleCoordinateChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
     }));
     // Clear error for this field
     if (formErrors[name]) {
@@ -258,7 +345,6 @@ const AdminEvents = () => {
       };
 
       if (selectedEvent) {
-        // Update existing event - PUT /api/Events/{id}
         const updateData = {
           name: formData.name.trim(),
           description: formData.description.trim(),
@@ -278,16 +364,13 @@ const AdminEvents = () => {
         await apiCall(`/api/Events/${selectedEvent.id}`, 'PUT', updateData);
         setSaveSuccess('Event updated successfully!');
       } else {
-        // Create new event - POST /api/Events
         console.log('🔄 Creating new event');
         await apiCall('/api/Events', 'POST', dataToSend);
         setSaveSuccess('Event created successfully!');
       }
       
-      // Refresh events list
       await fetchEvents();
       
-      // Close modal after short delay
       setTimeout(() => {
         setShowFormModal(false);
         setSaveSuccess('');
@@ -388,6 +471,15 @@ const AdminEvents = () => {
       minute: '2-digit'
     });
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (geocodeTimeoutRef.current) {
+        clearTimeout(geocodeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <>
@@ -597,7 +689,7 @@ const AdminEvents = () => {
       {/* Create/Edit Event Modal */}
       {showFormModal && (
         <Modal onClose={() => setShowFormModal(false)}>
-          <div className="max-h-[80vh] overflow-y-auto">
+          <div className="max-h-[80vh] overflow-y-auto px-1">
             <h3 className="text-xl font-bold text-[#132149] mb-4">
               <i className={`fas ${selectedEvent ? 'fa-edit' : 'fa-plus-circle'} text-[#02a2e0] mr-2`}></i>
               {selectedEvent ? 'Edit Event' : 'Create New Event'}
@@ -657,18 +749,54 @@ const AdminEvents = () => {
                 {formErrors.venueName && <p className="text-xs text-red-500 mt-1">{formErrors.venueName}</p>}
               </div>
 
-              {/* Venue Address */}
+              {/* Venue Address - Auto-search on type */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Venue Address</label>
-                <input
-                  type="text"
-                  name="venueAddress"
-                  value={formData.venueAddress}
-                  onChange={handleFormChange}
-                  placeholder="123 Sports Avenue, Johannesburg"
-                  className="w-full p-3 rounded-2xl border-2 border-gray-200 bg-gray-50 focus:border-[#02a2e0] outline-none"
-                />
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <i className="fas fa-map-pin text-[#02a2e0] mr-1"></i> Venue Address
+                  <span className="text-xs text-gray-400 ml-2">(Auto-search on type)</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    name="venueAddress"
+                    value={formData.venueAddress}
+                    onChange={handleFormChange}
+                    placeholder="Start typing address, e.g., 123 Main St, Johannesburg"
+                    className="w-full p-3 rounded-2xl border-2 border-gray-200 bg-gray-50 focus:border-[#02a2e0] outline-none pr-12"
+                  />
+                  {isGeocoding && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <div className="w-5 h-5 border-2 border-[#02a2e0] border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                  {!isGeocoding && formData.latitude && formData.longitude && formData.venueAddress && (
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2">
+                      <i className="fas fa-check-circle text-green-500"></i>
+                    </div>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">
+                  <i className="fas fa-info-circle mr-1"></i> 
+                  Address will be automatically geocoded to coordinates after you stop typing
+                </p>
               </div>
+
+              {/* Map Display */}
+              {showMap && formData.latitude && formData.longitude && (
+                <div className="rounded-2xl overflow-hidden border-2 border-gray-200 h-[300px]">
+                  <iframe
+                    title="Event Location Map"
+                    width="100%"
+                    height="100%"
+                    frameBorder="0"
+                    scrolling="no"
+                    marginHeight="0"
+                    marginWidth="0"
+                    src={`https://www.openstreetmap.org/export/embed.html?bbox=${parseFloat(formData.longitude) - 0.01}%2C${parseFloat(formData.latitude) - 0.01}%2C${parseFloat(formData.longitude) + 0.01}%2C${parseFloat(formData.latitude) + 0.01}&layer=mapnik&marker=${formData.latitude}%2C${formData.longitude}`}
+                    style={{ border: 0 }}
+                  />
+                </div>
+              )}
 
               {/* Latitude & Longitude */}
               <div className="grid grid-cols-2 gap-3">
@@ -678,7 +806,7 @@ const AdminEvents = () => {
                     type="number"
                     name="latitude"
                     value={formData.latitude}
-                    onChange={handleFormChange}
+                    onChange={handleCoordinateChange}
                     placeholder="-26.2041"
                     step="any"
                     className="w-full p-3 rounded-2xl border-2 border-gray-200 bg-gray-50 focus:border-[#02a2e0] outline-none"
@@ -690,7 +818,7 @@ const AdminEvents = () => {
                     type="number"
                     name="longitude"
                     value={formData.longitude}
-                    onChange={handleFormChange}
+                    onChange={handleCoordinateChange}
                     placeholder="28.0473"
                     step="any"
                     className="w-full p-3 rounded-2xl border-2 border-gray-200 bg-gray-50 focus:border-[#02a2e0] outline-none"
@@ -757,7 +885,7 @@ const AdminEvents = () => {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Banner Image URL</label>
                 <input
                   type="url"
-                    name="bannerImageUrl"
+                  name="bannerImageUrl"
                   value={formData.bannerImageUrl}
                   onChange={handleFormChange}
                   placeholder="https://example.com/banner.jpg"
